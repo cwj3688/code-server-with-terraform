@@ -1,11 +1,15 @@
 version: '3.8'
 services:
   code-server:
-    image: code-server-with-terraform
-    container_name: code-server-terraform
+    image: code-server-hol3
+    container_name: code-server-hol3
     restart: always
     ports:
       - "8080:8080"
     volumes:
-      - .:/home/coder/project
-    command: --auth none
+      - /home/vmuser/project:/home/coder/project
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --auth none /home/coder/project
+    group_add:
+      # - $(shell getent group docker | cut -d: -f3)
+      - ${DOCKER_GID}
