@@ -1,31 +1,50 @@
 # Terraform이 포함된 code-server
 
-이 저장소는 브라우저에서 실행되는 오픈 소스 VS Code인 [code-server](https://github.com/coder/code-server)를 Terraform이 사전 설치된 상태로 실행하기 위한 Docker 구성을 제공합니다.
+이 저장소는 브라우저에서 실행되는 오픈 소스 VS Code인 [code-server](https://github.com/coder/code-server)를 Terraform과 다양한 개발 도구가 사전 설치된 상태로 실행하기 위한 Docker 구성을 제공합니다.
+
+## 설치된 도구
+- Terraform v1.11.3 (자동 완성 지원)
+- Docker CLI
+- Java (OpenJDK 17)
+- Node.js v20 (최신 npm 포함)
+- Helm (자동 완성 지원)
+- Kubectl v1.30.6 (자동 완성 지원)
+
+## 설치된 VS Code 확장
+- HashiCorp Terraform (Terraform 파일 지원)
+- Docker (Docker 파일 지원)
+- Java Extension Pack (Java 개발 환경)
+- ESLint & Prettier (JavaScript 코드 품질)
+- Kubernetes Tools (Kubernetes 관리)
+- YAML Support (Kubernetes 매니페스트 및 Helm 차트)
+
+## 터미널 기능
+- Bash 자동 완성 지원
+- 유용한 명령어 단축키:
+  - `ll`, `la`, `l`: 파일 목록 표시
+  - `cls`: 화면 지우기
+  - `k`: kubectl 명령어 (자동 완성 지원)
+  - `h`: helm 명령어 (자동 완성 지원)
+  - `tf`: terraform 명령어 (자동 완성 지원)
 
 ## 필수 조건
 
-시스템에 다음 항목이 설치되어 있는지 확인하세요.
+시스템에 다음 항목이 설치되어 있는지 확인하세요:
 
 * [Docker](https://docs.docker.com/ko/get-docker/)
 * [Docker Compose](https://docs.docker.com/compose/install/) (V2 권장)
 
 ## 시작하기
 
-1.  **저장소 복제 (또는 파일 복사):**
-
-    이 `Readme.md` 파일과 제공된 `Dockerfile`, `docker-compose.yml` 파일이 로컬 디렉토리에 있다면 이 단계를 건너뛸 수 있습니다. 그렇지 않다면 이 파일들이 포함된 저장소를 복제하세요.
-
-2.  **Docker 이미지 빌드:**
-
-    `Dockerfile`이 있는 디렉토리로 이동하여 다음 명령을 실행합니다.
+1.  **Docker 이미지 빌드:**
 
     ```bash
-    docker build -t code-server-with-terraform .
+    docker build -t code-server-hol3 .
     ```
 
-    이 명령은 `Dockerfile`의 지침에 따라 `code-server-with-terraform`라는 Docker 이미지를 빌드합니다. 지정된 Terraform 버전을 다운로드하여 설치합니다.
+    이 명령은 `Dockerfile`의 지침에 따라 `code-server-hol3`라는 Docker 이미지를 빌드합니다. 지정된 Terraform 버전을 다운로드하여 설치합니다.
 
-3.  **Docker Compose를 사용하여 code-server 컨테이너 실행:**
+2.  **Docker Compose를 사용하여 code-server 컨테이너 실행:**
 
     같은 디렉토리에서 다음 명령을 실행합니다. 이 명령은 컨테이너가 호스트의 Docker 소켓 (`/var/run/docker.sock`)에 접근할 수 있도록, 현재 사용자의 `docker` 그룹 ID (GID)를 컨테이너에 전달합니다.
 
@@ -36,18 +55,21 @@
     * **참고:** 이 명령은 함께 제공된 `docker-compose.yml` 파일이 `group_add:` 섹션에서 `${DOCKER_GID}` 환경 변수를 사용하도록 설정되어 있다고 가정합니다.
     * 만약 `docker` 그룹이 없거나 GID를 가져올 수 없는 경우 오류가 발생할 수 있습니다.
 
-    이 명령은 `docker-compose.yml` 파일에 정의된 대로 `code-server-terraform` 컨테이너를 백그라운드에서 실행합니다 (`-d` 플래그).
+3.  **웹 브라우저에서 code-server 접속:**
 
-4.  **웹 브라우저에서 code-server 접속:**
+    로컬 환경에서는 웹 브라우저를 열고 `http://localhost:8080`으로 이동합니다. code-server 인터페이스가 나타납니다.
 
-    웹 브라우저를 열고 `http://localhost:8080`으로 이동합니다. code-server 인터페이스가 나타납니다.
+    외부 또는 클라우드 환경에서 접속하는 경우:
+    * 서버의 공인 IP 주소나 도메인 이름을 사용하여 접속: `http://<서버_IP_또는_도메인>:8080`
+    * 클라우드 환경의 경우 보안 그룹이나 방화벽에서 8080 포트가 열려있는지 확인하세요
+    * 프로덕션 환경에서는 보안을 위해 HTTPS 사용을 권장합니다
 
 ## 사용법
 
-code-server가 실행되면 다음 작업을 수행할 수 있습니다.
+code-server가 실행되면 다음 작업을 수행할 수 있습니다:
 
 * 마운트된 볼륨 (`.:/home/coder/project` 또는 `docker-compose.yml`에 지정된 다른 경로)의 파일을 탐색합니다. 브라우저에서 변경한 내용은 로컬 디렉토리에 반영되며, 그 반대의 경우도 마찬가지입니다.
-* code-server 내에서 터미널을 열고 (터미널 > 새 터미널) Terraform 명령 (`terraform version`, `terraform init` 등)을 실행합니다. 지정된 Terraform 버전이 이미 설치되어 있습니다.
+* code-server 내에서 터미널을 열고 (터미널 > 새 터미널) 각종 개발 도구 명령어를 실행합니다. 모든 도구는 자동 완성을 지원합니다.
 
 ## 구성
 

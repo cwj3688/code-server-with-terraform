@@ -9,61 +9,87 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     gnupg \
-    lsb-release && \
-    rm -rf /var/lib/apt/lists/*
+    lsb-release \
+    git \
+    bash-completion \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Terraform
-# Consider using a newer version if appropriate for your needs
 ARG TERRAFORM_VERSION="1.11.3"
-RUN wget "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
-    unzip "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
-    mv terraform /usr/local/bin && \
-    rm "terraform_${TERRAFORM_VERSION}_linux_amd64.zip"
+RUN wget --progress=dot:giga "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
+    unzip -q "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -d /usr/local/bin && \
+    rm "terraform_${TERRAFORM_VERSION}_linux_amd64.zip" && \
+    terraform --version && \
+    # Install Terraform autocomplete
+    terraform -install-autocomplete
 
 # Install Docker CLI (using official Docker DEBIAN repository)
 RUN mkdir -p /etc/apt/keyrings && \
-    # Use the Debian GPG key URL
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
-    echo \
-      # Use the Debian repository URL
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-      $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && apt-get install -y --no-install-recommends docker-ce-cli && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+    $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends docker-ce-cli && \
+    docker --version && \
     rm -rf /var/lib/apt/lists/*
 
 # --- Java (OpenJDK) ---
-# Define Java Version (e.g., 17 for LTS)
 ARG JAVA_VERSION=17
 RUN apt-get update && \
     apt-get install -y --no-install-recommends "openjdk-${JAVA_VERSION}-jdk" && \
-    # Clean up APT cache
+    java -version && \
     rm -rf /var/lib/apt/lists/*
 
 # --- Node.js ---
-# Define Node.js Major version (e.g., 20 for LTS as of late 2023/early 2024)
 ARG NODE_MAJOR=20
-# Setup NodeSource repository
 RUN curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-# Install Node.js
-RUN apt-get update && \
+    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_$NODE_MAJOR.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list && \
+    apt-get update && \
     apt-get install -y --no-install-recommends nodejs && \
-    # Clean up APT cache
+    npm install -g npm@latest && \
+    node --version && \
+    npm --version && \
     rm -rf /var/lib/apt/lists/*
 
 # --- Helm ---
-# Install Helm (using official script)
 RUN curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 && \
     chmod +x get_helm.sh && \
-    ./get_helm.sh && \
+    VERIFY_CHECKSUM=false ./get_helm.sh && \
+    helm version && \
     rm get_helm.sh
 
 # --- Kubectl ---
-# Define Kubectl version (defaulting to 1.30.6)
 ARG KUBECTL_VERSION="1.30.6"
-# Install specific Kubectl version (controlled by build-arg)
 RUN curl -LO "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/amd64/kubectl" && \
     chmod +x kubectl && \
-    mv kubectl /usr/local/bin/kubectl
+    mv kubectl /usr/local/bin/kubectl && \
+    kubectl version --client
 
+
+# Add bash completion and source completion scripts
+RUN echo 'source /usr/share/bash-completion/bash_completion' >> /etc/bash.bashrc && \
+    echo 'source <(kubectl completion bash)' >> /etc/bash.bashrc && \
+    echo 'source <(helm completion bash)' >> /etc/bash.bashrc && \
+    echo 'alias ll="ls -alF"' >> /etc/bash.bashrc && \
+    echo 'alias la="ls -A"' >> /etc/bash.bashrc && \
+    echo 'alias l="ls -CF"' >> /etc/bash.bashrc && \
+    echo 'alias cls="clear"' >> /etc/bash.bashrc && \
+    echo 'alias k="kubectl"' >> /etc/bash.bashrc && \
+    echo 'alias h="helm"' >> /etc/bash.bashrc && \
+    echo 'alias tf="terraform"' >> /etc/bash.bashrc && \
+    echo 'complete -o default -F __start_kubectl k' >> /etc/bash.bashrc
+
+# Install VS Code extensions for autocompletion
 USER coder
+
+# Install all VS Code extensions in a single layer
+RUN code-server --install-extension hashicorp.terraform && \
+    code-server --install-extension ms-azuretools.vscode-docker && \
+    code-server --install-extension vscjava.vscode-java-pack && \
+    code-server --install-extension dbaeumer.vscode-eslint && \
+    code-server --install-extension esbenp.prettier-vscode && \
+    code-server --install-extension ms-kubernetes-tools.vscode-kubernetes-tools && \
+    code-server --install-extension redhat.vscode-yaml
+
+# Set default shell to bash
+ENV SHELL=/bin/bash
